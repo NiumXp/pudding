@@ -62,7 +62,7 @@ class DiscordWebSocket:
 
     def __init__(
         self,
-        token: str,
+        token: Optional[str],
         bot=None,
         loop=None,
         # NOTE When the default api version is 8, intents cannot be optional.
@@ -72,6 +72,12 @@ class DiscordWebSocket:
         dispatcher: Optional[Callable[[str, dict], None]] = None,
     ) -> None:
 
+        if token is None:
+            if self.bot is None:
+                raise ValueError("bot expected")
+
+            token = bot.token
+
         self.token = token
         self.bot = bot
         self.loop = loop or asyncio.get_event_loop()
@@ -79,6 +85,9 @@ class DiscordWebSocket:
         self.gateway = gateway
         self.session = session
         self.dispatcher = dispatcher
+
+        if self.intents is None and self.bot:
+            self.intents = self.bot.intents
 
         self.socket = None
         self.session_id = None
