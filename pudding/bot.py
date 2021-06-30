@@ -1,24 +1,29 @@
 import asyncio
-from typing import NoReturn
+from typing import NoReturn, Optional
 
 from .http import DiscordHTTPClient
-from .gateway import DiscordWebSocket
+from .gateway import DiscordWebSocket, ReconnectWebSocket
 
 
 class Bot:
     __slots__ = (
+        "intents",
+
         "http",
         "gtws",
         "loop",
+        "token",
         "_extensions",
         "_closed",
     )
 
-    def __init__(self) -> None:
+    def __init__(self, intents: Optional[int] = None) -> None:
+        self.intents = intents
+
         self.http: DiscordHTTPClient = None
         self.gtws: DiscordWebSocket = None
-
         self.loop = asyncio.get_event_loop()
+        self.token = None
 
         self._extensions = {}
         self._closed = True
@@ -36,15 +41,43 @@ class Bot:
         pass
 
     def run(self, token: str):
-        pass
+        self.token = token
+
+        async def runner() -> None:
+            try:
+                await self.start()
+                await self.connect()
+            finally:
+                if not self.is_closed():
+                    await self.close()
+
+        future = asyncio.ensure_future(runner(), loop=self.loop)
+
+        try:
+            self.loop.run_forever()
+        finally:
+            pass
+
+        if not future.cancelled():
+            return future.result()
 
     async def start(self) -> None:
         """Creates a `DiscordHTTPClient` session."""
-        pass
+        self.http = DiscordHTTPClient(self.token)
 
     async def connect(self) -> NoReturn:
         """Creates a `DiscordWebSocket` connection."""
-        pass
+        self.gtws = DiscordWebSocket(bot=self, dispatcher=self._dispatcher)
+        await self.gtws.connect()
+
+        while True:
+            try:
+                await self.gtws.poll_event()
+            except ReconnectWebSocket:
+                await self.gtws.connect(resume=True)
+
+    def _dispatcher(self, name: str, payload: dict) -> None:
+        print(name, len(payload))
 
     async def close(self) -> None:
         if self._closed:

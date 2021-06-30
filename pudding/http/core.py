@@ -16,7 +16,7 @@ class DiscordHTTPClient:
     def __init__(self, token: Optional[str]) -> None:
         self.token = token
 
-        self.session: aiohttp.ClientSession = None
+        self.session: aiohttp.ClientSession = aiohttp.ClientSession()
         self._closed = True
 
     def is_closed(self) -> bool:

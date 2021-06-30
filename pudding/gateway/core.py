@@ -10,6 +10,8 @@ from aiohttp import WSMsgType as MType
 from .gateway import Gateway
 from .keep_alive import KeepAlive
 
+_DEFAULT_INTERVAL = 30
+
 
 class GatewayError(Exception):
     pass
@@ -62,7 +64,7 @@ class DiscordWebSocket:
 
     def __init__(
         self,
-        token: Optional[str],
+        token: Optional[str] = None,
         bot=None,
         loop=None,
         # NOTE When the default api version is 8, intents cannot be optional.
@@ -73,12 +75,16 @@ class DiscordWebSocket:
     ) -> None:
 
         if token is None:
-            if self.bot is None:
+            if bot is None:
                 raise ValueError("bot expected")
 
             token = bot.token
 
         self.token = token
+
+        if self.token is None:
+            raise ValueError("token expected")
+
         self.bot = bot
         self.loop = loop or asyncio.get_event_loop()
         self.intents = intents
@@ -92,7 +98,7 @@ class DiscordWebSocket:
         self.socket = None
         self.session_id = None
         self.keep_alive: KeepAlive = None
-        self.heartbeat_interval = None
+        self.heartbeat_interval = _DEFAULT_INTERVAL
         self._seq = None
         self._closed = True
         self._buffer = bytearray()
@@ -133,21 +139,22 @@ class DiscordWebSocket:
 
         self.session_id = None
         self.keep_alive = None
-        self.heartbeat_interval = None
+        self.heartbeat_interval = _DEFAULT_INTERVAL
         self._seq = None
         self._closed = True
         self._buffer = bytearray()
 
     async def connect(self, resume: bool = False) -> None:
         if self.session is None:
-            if self.bot:
+            if self.bot and self.bot.http:
                 self.session = self.bot.http.session
             else:
                 self.session = aiohttp.ClientSession()
 
+        self.gateway = Gateway("wss://gateway.discord.gg/", version=7)
         if self.gateway is None:
-            if self.bot is None:
-                raise Exception()
+            if self.bot is None or self.bot.http is None:
+                raise GatewayError("could not find a Gateway object")
 
             self.gateway = await self.bot.http.get_bot_gateway()
 
@@ -165,7 +172,6 @@ class DiscordWebSocket:
             timeout = self.heartbeat_interval*2 + 20 
             message = await self.socket.receive(timeout=timeout)
         except asyncio.TimeoutError:
-            print("timeout")
             await self.close()
             raise ReconnectWebSocket() from None
 
@@ -202,6 +208,7 @@ class DiscordWebSocket:
             self._buffer.extend(data)
 
             if len(data) < 4 or data[-4:] != b'\x00\x00\xff\xff':
+                print("returned")
                 return
 
             data = self._inflator.decompress(self._buffer)
@@ -233,7 +240,8 @@ class DiscordWebSocket:
                 await self.close()
                 raise ReconnectWebSocket()
 
-            return await self.close(1000)
+            await self.close(1000)
+            raise GatewayError("can't reconnect")
 
         if op is self.RECONNECT:
             await self.close(1000)
