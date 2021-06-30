@@ -6,7 +6,13 @@ from .gateway import DiscordWebSocket
 
 
 class Bot:
-    __slots__ = ("http", "gtws", "loop", "_extensions", "_closed")
+    __slots__ = (
+        "http",
+        "gtws",
+        "loop",
+        "_extensions",
+        "_closed",
+    )
 
     def __init__(self) -> None:
         self.http: DiscordHTTPClient = None
@@ -15,7 +21,7 @@ class Bot:
         self.loop = asyncio.get_event_loop()
 
         self._extensions = {}
-        self._closed = False
+        self._closed = True
 
     def is_closed(self) -> bool:
         return self._closed
@@ -33,10 +39,25 @@ class Bot:
         pass
 
     async def start(self) -> None:
+        """Creates a `DiscordHTTPClient` session."""
         pass
 
     async def connect(self) -> NoReturn:
+        """Creates a `DiscordWebSocket` connection."""
         pass
 
     async def close(self) -> None:
-        pass
+        if self._closed:
+            return
+
+        try:
+            await self.http.close()
+        finally:
+            self.http = None
+
+        try:
+            await self.gtws.close()
+        finally:
+            self.gtws = None
+
+        self._closed = True

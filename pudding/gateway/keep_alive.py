@@ -9,6 +9,7 @@ class KeepAlive(threading.Thread):
     __slots__ = (
         "ws",
         "interval",
+
         "latency",
         "_event",
         "_last_ack",

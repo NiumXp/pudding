@@ -85,7 +85,7 @@ class DiscordWebSocket:
         self.keep_alive: KeepAlive = None
         self.heartbeat_interval = None
         self._seq = None
-        self._closed = False
+        self._closed = True
         self._buffer = bytearray()
         self._inflator = zlib.decompressobj()
 
