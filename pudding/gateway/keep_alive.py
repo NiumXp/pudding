@@ -11,6 +11,7 @@ class KeepAlive(threading.Thread):
         "interval",
         "latency",
         "_event",
+        "_last_ack",
         "_last_send",
         "_last_recv",
     )
@@ -23,14 +24,14 @@ class KeepAlive(threading.Thread):
 
         self.latency = None
         self._event = threading.Event()
+        self._last_ack = time.perf_counter()
         self._last_send = time.perf_counter()
         self._last_recv = time.perf_counter()
 
     def run(self) -> NoReturn:
         while not self._event.wait(self.interval):
-            if self._last_recv + 15 < time.perf_counter():
-                coro = self.ws.close(4000)
-
+            if self._last_ack + (self.interval*1.5) < time.perf_counter():
+                coro = self.ws.close()
                 future = asyncio.run_coroutine_threadsafe(coro, self.ws.loop)
 
                 try:
@@ -56,6 +57,8 @@ class KeepAlive(threading.Thread):
     def ack(self) -> None:
         now = time.perf_counter()
         self.latency = now - self._last_send
+
+        self._last_ack = now
 
     def recv(self) -> None:
         self._last_recv = time.perf_counter()

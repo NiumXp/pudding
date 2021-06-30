@@ -15,12 +15,13 @@ class GatewayError(Exception):
     pass
 
 
-class CloseGateway(Exception):
+class CloseGateway(GatewayError):
     def __init__(self, code: int, message: str) -> None:
         self.code = code
         self.message = message
 
         super().__init__(f"Gateway closed {code}: {message}")
+
 
 class ReconnectWebSocket(GatewayError):
     pass
@@ -52,6 +53,7 @@ class DiscordWebSocket:
         "socket",
         "session_id",
         "keep_alive",
+        "heartbeat_interval",
         "_seq",
         "_closed",
         "_buffer",
@@ -80,7 +82,8 @@ class DiscordWebSocket:
 
         self.socket = None
         self.session_id = None
-        self.keep_alive = None
+        self.keep_alive: KeepAlive = None
+        self.heartbeat_interval = None
         self._seq = None
         self._closed = False
         self._buffer = bytearray()
@@ -94,37 +97,44 @@ class DiscordWebSocket:
     def is_closed(self) -> bool:
         return self._closed
 
-    async def close(self, code) -> None:
+    async def close(self, code: Optional[int] = None) -> None:
         if self._closed:
-            raise Exception()
+            return
 
-        await self.socket.close(code=code)
+        if code is None:
+            code = 4000
+
+        try:
+            await self.socket.close(code=code)
+        finally:
+            self.socket = None
 
         if self.session:
             if (
                 not self.bot
                 or (self.bot.http.session is not self.session)
             ):
-                await self.session.close()
+                if not self.session.closed:
+                    await self.session.close()
+
+            self.session = None
 
         if self.keep_alive:
             self.keep_alive.stop()
 
-        self.socket = None
-        self.session = None
         self.session_id = None
-        self.keep_alive: KeepAlive = None
+        self.keep_alive = None
+        self.heartbeat_interval = None
         self._seq = None
-
         self._closed = True
+        self._buffer = bytearray()
 
-    async def connect(self) -> None:
+    async def connect(self, resume: bool = False) -> None:
         if self.session is None:
             if self.bot:
                 self.session = self.bot.http.session
             else:
                 self.session = aiohttp.ClientSession()
-
 
         if self.gateway is None:
             if self.bot is None:
@@ -135,10 +145,20 @@ class DiscordWebSocket:
         self.socket = await self.session.ws_connect(self.gateway.wss)
 
         await self.poll_event()
+
+        if resume:
+            return await self.resume()
+
         await self.identify()
 
     async def poll_event(self):
-        message = await self.socket.receive(timeout=60)
+        try:
+            timeout = self.heartbeat_interval*2 + 20 
+            message = await self.socket.receive(timeout=timeout)
+        except asyncio.TimeoutError:
+            print("timeout")
+            await self.close()
+            raise ReconnectWebSocket() from None
 
         if message.type is MType.ERROR:
             raise message.error
@@ -160,12 +180,13 @@ class DiscordWebSocket:
             raise CloseGateway(code, message.extra)
 
         if message.type in (MType.CLOSING, MType.CLOSED):
-            await self.close(4001)
-            print(message)
+            await self.close()
             raise ReconnectWebSocket()
 
-        # TODO MType.Close
-        return
+        await self._unknown_message(message)
+
+    async def _unknown_message(self, message: MType, /) -> None:
+        pass
 
     async def parse_raw_message(self, data: AnyStr) -> dict:
         if type(data) is bytes:
@@ -188,9 +209,11 @@ class DiscordWebSocket:
         d = payload['d']
 
         if op is self.HELLO:
-            interval = d["heartbeat_interval"] / 1000
+            self.heartbeat_interval = d["heartbeat_interval"]
+
+            interval = self.heartbeat_interval / 1000
             self.keep_alive = KeepAlive(self, interval)
-            # await self.heartbeat()
+
             return self.keep_alive.start()
 
         if op is self.HEARTBEAT_ACK:
@@ -198,10 +221,10 @@ class DiscordWebSocket:
 
         if op is self.INVALID_SESSION:
             if d is True:
-                await self.close(1000)
+                await self.close()
                 raise ReconnectWebSocket()
 
-            return
+            return await self.close(1000)
 
         if op is self.RECONNECT:
             await self.close(1000)
@@ -213,11 +236,9 @@ class DiscordWebSocket:
 
             if t == "READY":
                 self.session_id = d["session_id"]
-                print(payload)
-                return
 
-            if t == "RESUMED":
-                return
+            # if t == "RESUMED":
+            #     return
 
             self._seq = s
 
@@ -226,9 +247,9 @@ class DiscordWebSocket:
 
             return
 
-        await self._uknown_payload(payload)
+        await self._unknown_payload(payload)
 
-    async def _unkown_payload(self, payload, /):
+    async def _unknown_payload(self, payload, /):
         pass
 
     def send(self, data: Union[AnyStr, dict]) -> Coroutine[Any, Any, None]:
