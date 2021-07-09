@@ -2,7 +2,8 @@ import asyncio
 from typing import NoReturn, Optional
 
 from .http import DiscordHTTPClient
-from .gateway import DiscordWebSocket, ReconnectWebSocket
+from .gateway import DiscordWebSocket
+from . import errors
 
 
 class Bot:
@@ -67,13 +68,17 @@ class Bot:
 
     async def connect(self) -> NoReturn:
         """Creates a `DiscordWebSocket` connection."""
-        self.gtws = DiscordWebSocket(bot=self, dispatcher=self._dispatcher)
+        gt = await self.http.get_bot_gateway()
+
+        self.gtws = DiscordWebSocket(token=self.token, intents=self.intents,
+                                     gateway=gt, dispatcher=self._dispatcher)
+
         await self.gtws.connect()
 
         while True:
             try:
                 await self.gtws.poll_event()
-            except ReconnectWebSocket:
+            except errors.ReconnectWebSocket:
                 await self.gtws.connect(resume=True)
 
     def _dispatcher(self, name: str, payload: dict) -> None:

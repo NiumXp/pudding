@@ -1,32 +1,19 @@
-import asyncio
 import sys
 import zlib
 import json
+import asyncio
+from urllib.parse import urlencode
+from asyncio.events import AbstractEventLoop
 from typing import Any, AnyStr, Callable, Coroutine, Optional, Union
 
 import aiohttp
 from aiohttp import WSMsgType as MType
 
-from .gateway import Gateway
+from .gateway import GatewayPayload
 from .keep_alive import KeepAlive
+from .. import errors
 
 _DEFAULT_INTERVAL = 30
-
-
-class GatewayError(Exception):
-    pass
-
-
-class CloseGateway(GatewayError):
-    def __init__(self, code: int, message: str) -> None:
-        self.code = code
-        self.message = message
-
-        super().__init__(f"Gateway closed {code}: {message}")
-
-
-class ReconnectWebSocket(GatewayError):
-    pass
 
 
 class DiscordWebSocket:
@@ -43,14 +30,15 @@ class DiscordWebSocket:
     HELLO                   = 10
     HEARTBEAT_ACK           = 11
 
+    _VERSION = 9
+
     __slots__ = (
         "token",
-        "bot",
-        "loop",
         "intents",
         "gateway",
-        "session",
         "dispatcher",
+        "loop",
+        "session",
 
         "socket",
         "session_id",
@@ -64,36 +52,20 @@ class DiscordWebSocket:
 
     def __init__(
         self,
-        token: Optional[str] = None,
-        bot=None,
-        loop=None,
-        # NOTE When the default api version is 8, intents cannot be optional.
-        intents: Optional[int] = None,
-        gateway: Optional[Gateway] = None,
+        token: str,
+        intents: int,
+        gateway: GatewayPayload,
+        dispatcher: Callable[[str, dict], None],
+        loop: Optional[AbstractEventLoop] = None,
         session: Optional[aiohttp.ClientSession] = None,
-        dispatcher: Optional[Callable[[str, dict], None]] = None,
     ) -> None:
 
-        if token is None:
-            if bot is None:
-                raise ValueError("bot expected")
-
-            token = bot.token
-
         self.token = token
-
-        if self.token is None:
-            raise ValueError("token expected")
-
-        self.bot = bot
-        self.loop = loop or asyncio.get_event_loop()
         self.intents = intents
         self.gateway = gateway
-        self.session = session
         self.dispatcher = dispatcher
-
-        if self.intents is None and self.bot:
-            self.intents = self.bot.intents
+        self.loop = loop or asyncio.get_event_loop()
+        self.session = session
 
         self.socket = None
         self.session_id = None
@@ -119,23 +91,18 @@ class DiscordWebSocket:
         if code is None:
             code = 4000
 
+        if self.keep_alive:
+            self.keep_alive.stop()
+
         try:
             await self.socket.close(code=code)
         finally:
             self.socket = None
 
-        if self.session:
-            if (
-                not self.bot
-                or (self.bot.http.session is not self.session)
-            ):
-                if not self.session.closed:
-                    await self.session.close()
-
+        try:
+            await self.session.close()
+        finally:
             self.session = None
-
-        if self.keep_alive:
-            self.keep_alive.stop()
 
         self.session_id = None
         self.keep_alive = None
@@ -146,19 +113,14 @@ class DiscordWebSocket:
 
     async def connect(self, resume: bool = False) -> None:
         if self.session is None:
-            if self.bot and self.bot.http:
-                self.session = self.bot.http.session
-            else:
-                self.session = aiohttp.ClientSession()
+            self.session = aiohttp.ClientSession()
 
-        self.gateway = Gateway("wss://gateway.discord.gg/", version=7)
-        if self.gateway is None:
-            if self.bot is None or self.bot.http is None:
-                raise GatewayError("could not find a Gateway object")
+        wss = self.gateway["url"] + '?' + urlencode(
+            {'v': self._VERSION, "encoding": "json", "compress": "zlib-stream"}
+        )
 
-            self.gateway = await self.bot.http.get_bot_gateway()
-
-        self.socket = await self.session.ws_connect(self.gateway.wss)
+        self.socket = await self.session.ws_connect(wss)
+        self._closed = False
 
         await self.poll_event()
 
@@ -173,7 +135,7 @@ class DiscordWebSocket:
             message = await self.socket.receive(timeout=timeout)
         except asyncio.TimeoutError:
             await self.close()
-            raise ReconnectWebSocket() from None
+            raise errors.ReconnectWebSocket() from None
 
         if message.type is MType.ERROR:
             raise message.error
@@ -190,13 +152,13 @@ class DiscordWebSocket:
 
             if code not in (1000, 4004, 4010, 4011, 4012, 4013, 4014):
                 await self.close()
-                raise ReconnectWebSocket()
+                raise errors.ReconnectWebSocket()
 
-            raise CloseGateway(code, message.extra)
+            raise errors.GatewayConnection(code, message.extra)
 
         if message.type in (MType.CLOSING, MType.CLOSED):
             await self.close()
-            raise ReconnectWebSocket()
+            raise errors.ReconnectWebSocket()
 
         await self._unknown_message(message)
 
@@ -216,8 +178,6 @@ class DiscordWebSocket:
 
             self._buffer.clear()
 
-        # REVIEW Ignoring self.gateway.encoding
-        # https://github.com/discord/erlpack
         return json.loads(data)
 
     async def handle_payload(self, payload: dict) -> None:
@@ -238,14 +198,14 @@ class DiscordWebSocket:
         if op is self.INVALID_SESSION:
             if d is True:
                 await self.close()
-                raise ReconnectWebSocket()
+                raise errors.ReconnectWebSocket()
 
             await self.close(1000)
-            raise GatewayError("can't reconnect")
+            raise errors.GatewayError("can't reconnect")
 
         if op is self.RECONNECT:
             await self.close(1000)
-            raise ReconnectWebSocket()
+            raise errors.ReconnectWebSocket()
 
         if op is self.DISPATCH:  # 0
             s = payload['s']

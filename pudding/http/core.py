@@ -2,7 +2,7 @@ from typing import Optional
 
 import aiohttp
 
-from ..gateway import Gateway
+from ..gateway import GatewayPayload
 
 
 class DiscordHTTPClient:
@@ -36,8 +36,8 @@ class DiscordHTTPClient:
     async def request(self, method: str, endpoint: str, **parameters):
         pass
 
-    async def get_gateway(self) -> Gateway:
-        pass
+    async def get_gateway(self) -> GatewayPayload:
+        return {"url": "wss://gateway.discord.gg/"}  # :D
 
-    async def get_bot_gatewat(self) -> Gateway:
-        pass
+    async def get_bot_gateway(self) -> GatewayPayload:
+        return await self.get_gateway()  # :D

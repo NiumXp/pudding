@@ -1,8 +1,8 @@
-from .core import DiscordWebSocket, ReconnectWebSocket
-from .gateway import Gateway
+from .core import DiscordWebSocket
+from .gateway import GatewayPayload, SessionStartLimit
 
 __all__ = (
     "DiscordWebSocket",
-    "ReconnectWebSocket",
-    "Gateway",
+    "GatewayPayload",
+    "SessionStartLimit"
 )
