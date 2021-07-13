@@ -2,7 +2,7 @@ import time
 import asyncio
 import traceback
 import threading
-from typing import NoReturn
+from typing import Coroutine, NoReturn, Any
 
 
 class KeepAlive(threading.Thread):
@@ -40,7 +40,7 @@ class KeepAlive(threading.Thread):
                 finally:
                     return self.stop()
 
-            coro = self.ws.heartbeat()
+            coro = self.send_heartbeat_packet()
             future = asyncio.run_coroutine_threadsafe(coro, self.ws.loop)
 
             try:
@@ -49,7 +49,14 @@ class KeepAlive(threading.Thread):
                 traceback.print_exception(type(e), e, e.__traceback__)
                 return self.stop()
 
-            self._last_send = time.perf_counter()
+    def send_heartbeat_packet(self) -> Coroutine[Any, Any, None]:
+        packet = self.ws.heartbeat()
+
+        async def send():
+            await self.ws.send(packet)
+            self.send()
+
+        return send()
 
     def stop(self) -> None:
         if not self._event.is_set():
@@ -63,3 +70,6 @@ class KeepAlive(threading.Thread):
 
     def recv(self) -> None:
         self._last_recv = time.perf_counter()
+
+    def send(self, _=None) -> None:
+        self._last_send = time.perf_counter()

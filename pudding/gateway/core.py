@@ -124,10 +124,10 @@ class DiscordWebSocket:
 
         await self.poll_event()
 
-        if resume:
-            return await self.resume()
+        packet = (self.resume()
+                  if resume else self.identify())
 
-        await self.identify()
+        await self.send(packet)
 
     async def poll_event(self):
         try:
@@ -240,8 +240,9 @@ class DiscordWebSocket:
 
     # Packets
 
-    def identify(self) -> Coroutine[Any, Any, None]:
-        payload = {
+    def identify(self) -> dict:
+        """Returns the `IDENTIFY` packet."""
+        return {
             "op": self.IDENTIFY,
             'd': {
                 "token": self.token,
@@ -253,10 +254,10 @@ class DiscordWebSocket:
                 },
             },
         }
-        return self.send(payload)
 
-    def resume(self) -> Coroutine[Any, Any, None]:
-        payload = {
+    def resume(self) -> dict:
+        """Returns the `RESUME` packet."""
+        return {
             "op": self.RESUME,
             'd': {
                 "seq": self._seq,
@@ -264,9 +265,10 @@ class DiscordWebSocket:
                 "session_id": self.session_id,
             }
         }
-        return self.send(payload)
 
-    def heartbeat(self) -> Coroutine[Any, Any, None]:
-        payload = {"op": self.HEARTBEAT,
-                   'd': self._seq,}
-        return self.send(payload)
+    def heartbeat(self) -> dict:
+        """Returns the `HEARTBEAT` packet."""
+        return {
+            "op": self.HEARTBEAT,
+            'd': self._seq,
+        }
