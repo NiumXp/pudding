@@ -1,4 +1,8 @@
-from typing import Optional, TypedDict
+from typing import TypedDict
+
+
+class GatewayBotPayload(TypedDict):
+    url: str
 
 
 class SessionStartLimit(TypedDict):
@@ -10,5 +14,5 @@ class SessionStartLimit(TypedDict):
 
 class GatewayPayload(TypedDict):
     url: str
-    shards: Optional[int]
-    session_start_limit: Optional[SessionStartLimit]
+    shards: int
+    session_start_limit: SessionStartLimit

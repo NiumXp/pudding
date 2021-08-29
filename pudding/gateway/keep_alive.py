@@ -65,7 +65,6 @@ class KeepAlive(threading.Thread):
     def ack(self) -> None:
         now = time.perf_counter()
         self.latency = now - self._last_send
-
         self._last_ack = now
 
     def recv(self) -> None:

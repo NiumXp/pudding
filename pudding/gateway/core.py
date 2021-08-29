@@ -2,9 +2,9 @@ import sys
 import zlib
 import json
 import asyncio
+import typing as t
 from urllib.parse import urlencode
 from asyncio.events import AbstractEventLoop
-from typing import Any, AnyStr, Callable, Coroutine, Optional, Union
 
 import aiohttp
 from aiohttp import WSMsgType as MType
@@ -14,6 +14,19 @@ from .keep_alive import KeepAlive
 from .. import errors
 
 _DEFAULT_INTERVAL = 30
+
+
+class Packet(t.TypedDict):
+    op: t.Union[int, str]
+    d: t.Any
+
+
+class Payload(t.TypedDict):
+    op: t.Union[int, str]
+    d: t.Any
+    s: t.Union[int, None]
+    t: str
+
 
 
 class DiscordWebSocket:
@@ -55,9 +68,9 @@ class DiscordWebSocket:
         token: str,
         intents: int,
         gateway: GatewayPayload,
-        dispatcher: Callable[[str, dict], None],
-        loop: Optional[AbstractEventLoop] = None,
-        session: Optional[aiohttp.ClientSession] = None,
+        dispatcher: t.Callable[[str, t.Any], None],
+        loop: t.Optional[AbstractEventLoop] = None,
+        session: t.Optional[aiohttp.ClientSession] = None,
     ) -> None:
 
         self.token = token
@@ -68,23 +81,23 @@ class DiscordWebSocket:
         self.session = session
 
         self.socket = None
-        self.session_id = None
-        self.keep_alive: KeepAlive = None
+        self.session_id: t.Optional[int] = None
+        self.keep_alive: t.Optional[KeepAlive] = None
         self.heartbeat_interval = _DEFAULT_INTERVAL
-        self._seq = None
+        self._seq: t.Optional[int] = None
         self._closed = True
         self._buffer = bytearray()
         self._inflator = zlib.decompressobj()
 
     @property
-    def latency(self) -> Optional[float]:
+    def latency(self) -> t.Optional[float]:
         if self.keep_alive:
             return self.keep_alive.latency
 
     def is_closed(self) -> bool:
         return self._closed
 
-    async def close(self, code: Optional[int] = None) -> None:
+    async def close(self, code: t.Optional[int] = None) -> None:
         if self._closed:
             return
 
@@ -95,12 +108,12 @@ class DiscordWebSocket:
             self.keep_alive.stop()
 
         try:
-            await self.socket.close(code=code)
+            await self.socket.close(code=code)  # type: ignore
         finally:
             self.socket = None
 
         try:
-            await self.session.close()
+            await self.session.close()  # type: ignore
         finally:
             self.session = None
 
@@ -130,8 +143,10 @@ class DiscordWebSocket:
         await self.send(packet)
 
     async def poll_event(self):
+        assert self.socket
+
         try:
-            timeout = self.heartbeat_interval*2 + 20 
+            timeout = self.heartbeat_interval*2 + 20
             message = await self.socket.receive(timeout=timeout)
         except asyncio.TimeoutError:
             await self.close()
@@ -165,7 +180,7 @@ class DiscordWebSocket:
     async def _unknown_message(self, message: MType, /) -> None:
         pass
 
-    async def parse_raw_message(self, data: AnyStr) -> dict:
+    async def parse_raw_message(self, data: t.AnyStr) -> Payload:
         if type(data) is bytes:
             self._buffer.extend(data)
 
@@ -180,7 +195,7 @@ class DiscordWebSocket:
 
         return json.loads(data)
 
-    async def handle_payload(self, payload: dict) -> None:
+    async def handle_payload(self, payload: Payload) -> None:
         op = int(payload["op"])
         d = payload['d']
 
@@ -193,6 +208,7 @@ class DiscordWebSocket:
             return self.keep_alive.start()
 
         if op is self.HEARTBEAT_ACK:
+            assert self.keep_alive
             return self.keep_alive.ack()
 
         if op is self.INVALID_SESSION:
@@ -226,10 +242,12 @@ class DiscordWebSocket:
 
         await self._unknown_payload(payload)
 
-    async def _unknown_payload(self, payload, /):
+    async def _unknown_payload(self, payload: Payload, /) -> None:
         pass
 
-    def send(self, data: Union[AnyStr, dict]) -> Coroutine[Any, Any, None]:
+    def send(self, data: t.Union[bytes, str, Packet]) -> t.Coroutine[t.Any, t.Any, None]:
+        assert self.socket
+
         if type(data) is bytes:
             return self.socket.send_bytes(data)
 
@@ -240,7 +258,7 @@ class DiscordWebSocket:
 
     # Packets
 
-    def identify(self) -> dict:
+    def identify(self) -> Packet:
         """Returns the `IDENTIFY` packet."""
         return {
             "op": self.IDENTIFY,
@@ -255,7 +273,7 @@ class DiscordWebSocket:
             },
         }
 
-    def resume(self) -> dict:
+    def resume(self) -> Packet:
         """Returns the `RESUME` packet."""
         return {
             "op": self.RESUME,
@@ -266,7 +284,7 @@ class DiscordWebSocket:
             }
         }
 
-    def heartbeat(self) -> dict:
+    def heartbeat(self) -> Packet:
         """Returns the `HEARTBEAT` packet."""
         return {
             "op": self.HEARTBEAT,
