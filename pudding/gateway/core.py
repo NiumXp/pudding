@@ -160,6 +160,9 @@ class DiscordWebSocket:
                 self.keep_alive.recv()
 
             payload = await self.parse_raw_message(message.data)
+            if not payload:
+                return
+
             return await self.handle_payload(payload)
 
         if message.type is MType.CLOSE:
@@ -180,12 +183,11 @@ class DiscordWebSocket:
     async def _unknown_message(self, message: MType, /) -> None:
         pass
 
-    async def parse_raw_message(self, data: t.AnyStr) -> Payload:
+    async def parse_raw_message(self, data: t.AnyStr) -> t.Optional[Payload]:
         if type(data) is bytes:
             self._buffer.extend(data)
 
             if len(data) < 4 or data[-4:] != b'\x00\x00\xff\xff':
-                print("returned")
                 return
 
             data = self._inflator.decompress(self._buffer)
