@@ -1,8 +1,36 @@
-from typing import Optional
+import typing as t
 
-import aiohttp
+from aiohttp import ClientSession
 
 from ..gateway import GatewayPayload, GatewayBotPayload
+
+
+class Route:
+    __slots__ = ("_method", "_path", "auth")
+
+    BASE = "https://discord.com/api/v9"
+
+    def __init__(self, method: str, path: str, *, auth: bool = True, **params: t.Any) -> None:
+        path = path.format_map(params)
+
+        self._method = method
+        self._path = path
+        self.auth = auth
+
+    def __repr__(self) -> str:
+        return "Route({0.method!r}, {0.path!r}, auth={0.auth})".format(self)
+
+    @property
+    def method(self) -> str:
+        return self._method.upper()
+
+    @property
+    def path(self) -> str:
+        return '/' + self._path.lstrip('/')
+
+    @property
+    def url(self) -> str:
+        return self.BASE + self.path
 
 
 class DiscordHTTPClient:
@@ -13,10 +41,10 @@ class DiscordHTTPClient:
         "_closed",
     )
 
-    def __init__(self, token: Optional[str]) -> None:
+    def __init__(self, token: t.Optional[str]) -> None:
         self.token = token
 
-        self.session: aiohttp.ClientSession = aiohttp.ClientSession()
+        self.session: t.Optional[ClientSession] = None
         self._closed = True
 
     def is_closed(self) -> bool:
@@ -33,7 +61,7 @@ class DiscordHTTPClient:
 
         self._closed = True
 
-    async def request(self, method: str, endpoint: str, **parameters):
+    async def request(self, route: Route) -> t.Any:
         pass
 
     async def get_gateway(self) -> GatewayBotPayload:
