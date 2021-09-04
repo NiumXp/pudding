@@ -11,6 +11,7 @@ from asyncio.events import AbstractEventLoop
 
 import aiohttp
 from aiohttp import WSMsgType as MType
+from aiohttp.http_websocket import WSMessage
 
 from . import errors
 from .types import Packet, Payload, GatewayPayload
@@ -83,7 +84,7 @@ class KeepAlive(threading.Thread):
     def recv(self) -> None:
         self._last_recv = time.perf_counter()
 
-    def send(self, _=None) -> None:
+    def send(self) -> None:
         self._last_send = time.perf_counter()
 
 
@@ -200,7 +201,7 @@ class DiscordWebSocket:
 
         await self.send(packet)
 
-    async def poll_event(self):
+    async def poll_event(self) -> None:
         assert self.socket
 
         try:
@@ -210,10 +211,12 @@ class DiscordWebSocket:
             await self.close()
             raise errors.ReconnectWebSocket() from None
 
-        if message.type is MType.ERROR:
+        type_: MType = message.type  # type: ignore
+
+        if type_ is MType.ERROR:
             raise message.error
 
-        if message.type in (MType.TEXT, MType.BINARY):
+        if type_ in (MType.TEXT, MType.BINARY):
             if self.keep_alive:
                 self.keep_alive.recv()
 
@@ -223,7 +226,7 @@ class DiscordWebSocket:
 
             return await self.handle_payload(payload)
 
-        if message.type is MType.CLOSE:
+        if type_ is MType.CLOSE:
             code = message.data
 
             if code not in (1000, 4004, 4010, 4011, 4012, 4013, 4014):
@@ -232,16 +235,16 @@ class DiscordWebSocket:
 
             raise errors.GatewayConnection(code, message.extra)
 
-        if message.type in (MType.CLOSING, MType.CLOSED):
+        if type_ in (MType.CLOSING, MType.CLOSED):
             await self.close()
             raise errors.ReconnectWebSocket()
 
         await self._unknown_message(message)
 
-    async def _unknown_message(self, message: MType, /) -> None:
+    async def _unknown_message(self, message: WSMessage, /) -> None:
         pass
 
-    async def parse_raw_message(self, data: t.AnyStr) -> t.Optional[Payload]:
+    async def parse_raw_message(self, data: t.Union[str, bytes]) -> t.Optional[Payload]:
         if type(data) is bytes:
             self._buffer.extend(data)
 
