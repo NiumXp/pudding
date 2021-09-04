@@ -1,7 +1,10 @@
 import sys
 import zlib
 import json
+import time
 import asyncio
+import threading
+import traceback
 import typing as t
 from urllib.parse import urlencode
 from asyncio.events import AbstractEventLoop
@@ -9,11 +12,26 @@ from asyncio.events import AbstractEventLoop
 import aiohttp
 from aiohttp import WSMsgType as MType
 
-from .gateway import GatewayPayload
-from .keep_alive import KeepAlive
-from .. import errors
+from . import errors
 
 _DEFAULT_INTERVAL = 30
+
+
+class GatewayBotPayload(t.TypedDict):
+    url: str
+
+
+class SessionStartLimit(t.TypedDict):
+    total: int
+    remaining: int
+    reset_after: int
+    max_concurrency: int
+
+
+class GatewayPayload(t.TypedDict):
+    url: str
+    shards: int
+    session_start_limit: SessionStartLimit
 
 
 class Packet(t.TypedDict):
@@ -27,6 +45,74 @@ class Payload(t.TypedDict):
     s: t.Union[int, None]
     t: str
 
+
+class KeepAlive(threading.Thread):
+    __slots__ = (
+        "ws",
+        "interval",
+
+        "latency",
+        "_event",
+        "_last_ack",
+        "_last_send",
+        "_last_recv",
+    )
+
+    def __init__(self, ws: "DiscordWebSocket", interval: int, **kwargs: t.Any) -> None:
+        self.ws = ws
+        self.interval = interval
+
+        super().__init__(daemon=True, **kwargs)
+
+        self.latency = None
+        self._event = threading.Event()
+        self._last_ack = time.perf_counter()
+        self._last_send = time.perf_counter()
+        self._last_recv = time.perf_counter()
+
+    def run(self) -> None:
+        while not self._event.wait(self.interval):
+            if self._last_ack + (self.interval*1.5) < time.perf_counter():
+                coro = self.ws.close()
+                future = asyncio.run_coroutine_threadsafe(coro, self.ws.loop)
+
+                try:
+                    future.result()
+                finally:
+                    return self.stop()
+
+            coro = self.send_heartbeat_packet()
+            future = asyncio.run_coroutine_threadsafe(coro, self.ws.loop)
+
+            try:
+                future.result()
+            except Exception as e:
+                traceback.print_exception(type(e), e, e.__traceback__)
+                return self.stop()
+
+    def send_heartbeat_packet(self) -> t.Coroutine[t.Any, t.Any, None]:
+        packet = self.ws.heartbeat()
+
+        async def send():
+            await self.ws.send(packet)
+            self.send()
+
+        return send()
+
+    def stop(self) -> None:
+        if not self._event.is_set():
+            self._event.set()
+
+    def ack(self) -> None:
+        now = time.perf_counter()
+        self.latency = now - self._last_send
+        self._last_ack = now
+
+    def recv(self) -> None:
+        self._last_recv = time.perf_counter()
+
+    def send(self, _=None) -> None:
+        self._last_send = time.perf_counter()
 
 
 class DiscordWebSocket:
