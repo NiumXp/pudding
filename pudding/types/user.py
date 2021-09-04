@@ -13,6 +13,7 @@ class BaseUser(t.TypedDict):
 
 class User(BaseUser, total=False):
     bot: t.Optional[bool]
+    bio: t.Optional[str]  # not documented (only bots)
     system: t.Optional[bool]
     mfa_enabled: t.Optional[bool]
     local: t.Optional[str]
