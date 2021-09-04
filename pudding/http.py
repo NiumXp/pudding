@@ -108,3 +108,9 @@ class DiscordHTTPClient:
         r = Route("DELETE", "/channels/{id}", id=id)
         return await self.request(r, reason=reason)
 
+    async def get_user(self, id: types.Snowflake) -> types.User:
+        r = Route("GET", "/users/{id}", id=id)
+        return await self.request(r)
+
+    async def get_current_user(self) -> types.User:
+        return await self.get_user("@me")
