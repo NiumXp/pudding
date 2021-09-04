@@ -166,16 +166,14 @@ class DiscordWebSocket:
         if self.keep_alive:
             self.keep_alive.stop()
 
-        try:
-            await self.socket.close(code=code)  # type: ignore
-        finally:
-            self.socket = None
+        if self.socket:
+            await self.socket.close(code=code)
 
-        try:
-            await self.session.close()  # type: ignore
-        finally:
-            self.session = None
+        if self.session:
+            await self.session.close()
 
+        self.socket = None
+        self.session = None
         self.session_id = None
         self.keep_alive = None
         self.heartbeat_interval = _DEFAULT_INTERVAL

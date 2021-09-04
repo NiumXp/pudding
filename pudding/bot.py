@@ -3,17 +3,18 @@ import typing as t
 
 from .http import DiscordHTTPClient
 from .gateway import DiscordWebSocket
-from . import errors
+from . import errors, utils
 
 
 class Bot:
     __slots__ = (
         "intents",
 
+        "loop",
         "http",
         "gtws",
-        "loop",
         "token",
+
         "_extensions",
         "_closed",
     )
@@ -21,13 +22,13 @@ class Bot:
     def __init__(self, intents: t.Optional[int] = None) -> None:
         self.intents = intents
 
-        self.http: t.Optional[DiscordHTTPClient] = None
-        self.gtws: t.Optional[DiscordWebSocket] = None
         self.loop = asyncio.get_event_loop()
+        self.http: DiscordHTTPClient = DiscordHTTPClient()
+        self.gtws: t.Optional[DiscordWebSocket] = None
         self.token: t.Optional[str] = None
 
         self._extensions = {}
-        self._closed = True
+        self._closed = False
 
     def is_closed(self) -> bool:
         return self._closed
@@ -53,11 +54,10 @@ class Bot:
                     await self.close()
 
         future = asyncio.ensure_future(runner(), loop=self.loop)
+        future.add_done_callback(lambda _: self.loop.stop())
 
-        try:
+        with utils.suppress_all():
             self.loop.run_forever()
-        finally:
-            pass
 
         if not future.cancelled():
             return future.result()
@@ -92,14 +92,10 @@ class Bot:
         if self._closed:
             return
 
-        try:
+        with utils.suppress_all():
             await self.http.close()
-        finally:
-            self.http = None
 
-        try:
+        if self.gtws:
             await self.gtws.close()
-        finally:
-            self.gtws = None
 
         self._closed = True

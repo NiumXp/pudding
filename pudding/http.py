@@ -3,7 +3,7 @@ import typing as t
 
 from aiohttp import ClientSession
 
-from . import errors
+from . import errors, utils
 from .types import GatewayPayload, GatewayBotPayload
 
 
@@ -44,7 +44,7 @@ class DiscordHTTPClient:
         "_user_agent",
     )
 
-    def __init__(self, token: t.Optional[str]) -> None:
+    def __init__(self, token: t.Optional[str] = None) -> None:
         self.token = token
 
         self.session: t.Optional[ClientSession] = None
@@ -58,11 +58,10 @@ class DiscordHTTPClient:
         if self._closed:
             return
 
-        try:
-            await self.session.close()
-        finally:
-            self.session = None
+        with utils.suppress_all():
+            await self.session.close()  # type: ignore
 
+        self.session = None
         self._closed = True
 
     async def request(self, route: Route) -> t.Any:
