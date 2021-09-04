@@ -2,7 +2,7 @@ import typing as t
 
 from aiohttp import ClientSession
 
-from .gateway import GatewayPayload, GatewayBotPayload
+from .types import GatewayPayload, GatewayBotPayload
 
 
 class Route:
