@@ -1,5 +1,5 @@
 import asyncio
-from typing import NoReturn, Optional
+import typing as t
 
 from .http import DiscordHTTPClient
 from .gateway import DiscordWebSocket
@@ -18,13 +18,13 @@ class Bot:
         "_closed",
     )
 
-    def __init__(self, intents: Optional[int] = None) -> None:
+    def __init__(self, intents: t.Optional[int] = None) -> None:
         self.intents = intents
 
-        self.http: DiscordHTTPClient = None
-        self.gtws: DiscordWebSocket = None
+        self.http: t.Optional[DiscordHTTPClient] = None
+        self.gtws: t.Optional[DiscordWebSocket] = None
         self.loop = asyncio.get_event_loop()
-        self.token = None
+        self.token: t.Optional[str] = None
 
         self._extensions = {}
         self._closed = True
@@ -41,7 +41,7 @@ class Bot:
     def reload_extension(self, extension: str, /) -> None:
         pass
 
-    def run(self, token: str):
+    def run(self, token: str) -> None:
         self.token = token
 
         async def runner() -> None:
@@ -66,12 +66,16 @@ class Bot:
         """Creates a `DiscordHTTPClient` session."""
         self.http = DiscordHTTPClient(self.token)
 
-    async def connect(self) -> NoReturn:
+    async def connect(self) -> t.NoReturn:
         """Creates a `DiscordWebSocket` connection."""
-        gt = await self.http.get_bot_gateway()
+        gateway = await self.http.get_bot_gateway()
 
-        self.gtws = DiscordWebSocket(token=self.token, intents=self.intents,
-                                     gateway=gt, dispatcher=self._dispatcher)
+        self.gtws = DiscordWebSocket(
+            token=self.token,
+            intents=self.intents,
+            gateway=gateway,
+            dispatcher=self._dispatcher,
+        )
 
         await self.gtws.connect()
 
