@@ -2,13 +2,13 @@ import typing as t
 
 from aiohttp import ClientSession
 
-from ..gateway import GatewayPayload, GatewayBotPayload
+from .gateway import GatewayPayload, GatewayBotPayload
 
 
 class Route:
     __slots__ = ("_method", "_path", "auth")
 
-    BASE = "https://discord.com/api/v9"
+    BASE: t.ClassVar[str] = "https://discord.com/api/v9"
 
     def __init__(self, method: str, path: str, *, auth: bool = True, **params: t.Any) -> None:
         path = path.format_map(params)
