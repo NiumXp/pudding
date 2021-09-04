@@ -1,3 +1,11 @@
+__all__ = (
+    "GatewayPayload",
+    "SessionStartLimit",
+    "GatewayBotPayload",
+    "Packet",
+    "Payload",
+)
+
 import typing as t
 
 
@@ -28,7 +36,3 @@ class Payload(t.TypedDict):
     d: t.Any
     s: t.Union[int, None]
     t: str
-
-
-class Channel(t.TypedDict, total=False):
-    ...
