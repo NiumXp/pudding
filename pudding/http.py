@@ -1,7 +1,9 @@
+import json
 import typing as t
 
 from aiohttp import ClientSession
 
+from . import errors
 from .types import GatewayPayload, GatewayBotPayload
 
 
@@ -39,13 +41,15 @@ class DiscordHTTPClient:
 
         "session",
         "_closed",
+        "_user_agent",
     )
 
     def __init__(self, token: t.Optional[str]) -> None:
         self.token = token
 
         self.session: t.Optional[ClientSession] = None
-        self._closed = True
+        self._closed = False
+        self._user_agent = "DiscordBot"
 
     def is_closed(self) -> bool:
         return self._closed
@@ -62,10 +66,34 @@ class DiscordHTTPClient:
         self._closed = True
 
     async def request(self, route: Route) -> t.Any:
-        pass
+        if self._closed:
+            return
 
-    async def get_gateway(self) -> GatewayBotPayload:
-        return {"url": "wss://gateway.discord.gg/"}  # :D
+        if not self.session:
+            self.session = ClientSession()
 
-    async def get_bot_gateway(self) -> GatewayPayload:
-        return await self.get_gateway()  # :D
+        headers: t.Dict[str, str] = {
+            "User-Agent": self._user_agent,
+        }
+
+        if route.auth and self.token:
+            headers["Authorization"] = "Bot " + self.token
+
+        async with self.session.request(route.method, route.url, headers=headers) as response:
+            data = await response.text()
+
+            if response.headers.get("Content-Type") == "application/json":
+                data = json.loads(data)
+
+            if 300 > response.status >= 200:
+                return data
+
+            raise errors.HTTPException()
+
+    async def get_gateway(self) -> GatewayPayload:
+        r = Route("GET", "/gateway", auth=False)
+        return await self.request(r)
+
+    async def get_bot_gateway(self) -> GatewayBotPayload:
+        r = Route("GET", "/gateway/bot")
+        return await self.request(r)

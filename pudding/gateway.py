@@ -14,7 +14,7 @@ from aiohttp import WSMsgType as MType
 from aiohttp.http_websocket import WSMessage
 
 from . import errors
-from .types import Packet, Payload, GatewayPayload
+from .types import GatewayBotPayload, Packet, Payload, GatewayPayload
 
 _DEFAULT_INTERVAL = 30
 
@@ -126,7 +126,7 @@ class DiscordWebSocket:
         self,
         token: str,
         intents: int,
-        gateway: GatewayPayload,
+        gateway: t.Union[GatewayPayload, GatewayBotPayload],
         dispatcher: t.Callable[[str, t.Any], None],
         loop: t.Optional[AbstractEventLoop] = None,
         session: t.Optional[aiohttp.ClientSession] = None,

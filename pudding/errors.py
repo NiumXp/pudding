@@ -2,6 +2,10 @@ class PuddingError(Exception):
     pass
 
 
+class HTTPException(PuddingError):
+    pass
+
+
 class GatewayError(PuddingError):
     pass
 

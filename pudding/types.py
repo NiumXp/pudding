@@ -1,7 +1,7 @@
 import typing as t
 
 
-class GatewayBotPayload(t.TypedDict):
+class GatewayPayload(t.TypedDict):
     url: str
 
 
@@ -12,7 +12,7 @@ class SessionStartLimit(t.TypedDict):
     max_concurrency: int
 
 
-class GatewayPayload(t.TypedDict):
+class GatewayBotPayload(t.TypedDict):
     url: str
     shards: int
     session_start_limit: SessionStartLimit
