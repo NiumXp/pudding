@@ -3,7 +3,7 @@ import typing as t
 
 from aiohttp import ClientSession
 
-from . import errors, utils
+from . import errors, utils, types
 from .types import GatewayPayload, GatewayBotPayload
 
 
@@ -64,7 +64,7 @@ class DiscordHTTPClient:
         self.session = None
         self._closed = True
 
-    async def request(self, route: Route) -> t.Any:
+    async def request(self, route: Route, *, reason: t.Optional[str] = None) -> t.Any:
         if self._closed:
             return
 
@@ -74,6 +74,9 @@ class DiscordHTTPClient:
         headers: t.Dict[str, str] = {
             "User-Agent": self._user_agent,
         }
+
+        if reason:
+            headers["X-Audit-Log-Reason"] = reason
 
         if route.auth and self.token:
             headers["Authorization"] = "Bot " + self.token
@@ -96,3 +99,12 @@ class DiscordHTTPClient:
     async def get_bot_gateway(self) -> GatewayBotPayload:
         r = Route("GET", "/gateway/bot")
         return await self.request(r)
+
+    async def get_channel(self, id: int) -> types.Channel:
+        r = Route("GET", "/channels/{id}", id=id)
+        return await self.request(r)
+
+    async def delete_channel(self, id: int, *, reason: t.Optional[str] = None) -> None:
+        r = Route("DELETE", "/channels/{id}", id=id)
+        return await self.request(r, reason=reason)
+

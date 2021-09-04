@@ -28,3 +28,7 @@ class Payload(t.TypedDict):
     d: t.Any
     s: t.Union[int, None]
     t: str
+
+
+class Channel(t.TypedDict, total=False):
+    ...
