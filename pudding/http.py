@@ -69,6 +69,7 @@ class DiscordHTTPClient:
         route: Route,
         *,
         reason: t.Optional[str] = None,
+        **kwargs: t.Any,
     ) -> t.Any:
         if self._closed:
             return
@@ -86,7 +87,11 @@ class DiscordHTTPClient:
         if route.auth and self.token:
             headers["Authorization"] = "Bot " + self.token
 
-        async with self.session.request(route.method, route.url, headers=headers) as response:
+        kwargs["url"] = route.url
+        kwargs["method"] = route.method
+        kwargs["headers"] = headers
+
+        async with self.session.request(**kwargs) as response:
             data = await response.text()
 
             if response.headers.get("Content-Type") == "application/json":
@@ -182,6 +187,32 @@ class DiscordHTTPClient:
     # Guild Template
 
     # Invite
+
+    async def get_invite(
+        self,
+        invite_code: str,
+        *,
+        with_counts: t.Optional[bool] = None,
+        with_expiration: t.Optional[bool] = None,
+    ) -> types.Invite:
+        params = {}
+
+        if with_counts is not None:
+            params["with_counts"] = with_counts
+
+        if with_expiration is not None:
+            params["with_expiration"] = with_expiration
+
+        r = Route("GET", "/invites/{invite_code}", invite_code=invite_code,)
+        return await self.request(r, params=params)
+
+    async def delete_invite(
+        self,
+        invite_code: str,
+        reason: t.Optional[str] = None,
+    ) -> None:
+        r = Route("DELETE", "/invites/{invite_code}", invite_code=invite_code,)
+        return await self.request(r, reason=reason)
 
     # Stage instance
 
