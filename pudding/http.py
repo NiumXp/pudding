@@ -97,15 +97,7 @@ class DiscordHTTPClient:
 
             raise errors.HTTPException()
 
-    # Gateway
-
-    async def get_gateway(self) -> GatewayPayload:
-        r = Route("GET", "/gateway", auth=False)
-        return await self.request(r)
-
-    async def get_bot_gateway(self) -> GatewayBotPayload:
-        r = Route("GET", "/gateway/bot")
-        return await self.request(r)
+    # Audit Log
 
     # Channel
 
@@ -122,16 +114,7 @@ class DiscordHTTPClient:
         r = Route("DELETE", "/channels/{id}", id=id)
         return await self.request(r, reason=reason)
 
-    # User
-
-    async def get_user(self, id: types.Snowflake) -> types.User:
-        r = Route("GET", "/users/{id}", id=id)
-        return await self.request(r)
-
-    async def get_current_user(self) -> types.User:
-        return await self.get_user("@me")
-
-    # Emojis
+    # Emoji
 
     async def get_guild_emojis(
         self,
@@ -193,3 +176,36 @@ class DiscordHTTPClient:
         )
 
         return await self.request(r, reason=reason)
+
+    # Guild
+
+    # Guild Template
+
+    # Invite
+
+    # Stage instance
+
+    # Sticker
+
+    # User
+
+    async def get_user(self, id: types.Snowflake) -> types.User:
+        r = Route("GET", "/users/{id}", id=id)
+        return await self.request(r)
+
+    async def get_current_user(self) -> types.User:
+        return await self.get_user("@me")
+
+    # Voice
+
+    # Webhook
+
+    # Gateway
+
+    async def get_gateway(self) -> GatewayPayload:
+        r = Route("GET", "/gateway", auth=False)
+        return await self.request(r)
+
+    async def get_bot_gateway(self) -> GatewayBotPayload:
+        r = Route("GET", "/gateway/bot")
+        return await self.request(r)
