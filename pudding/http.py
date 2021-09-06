@@ -1,4 +1,5 @@
 import json
+from pudding.types.snowflake import Snowflake
 import typing as t
 
 from aiohttp import ClientSession
@@ -114,3 +115,66 @@ class DiscordHTTPClient:
 
     async def get_current_user(self) -> types.User:
         return await self.get_user("@me")
+
+    # Emojis
+
+    async def get_guild_emojis(
+        self,
+        guild_id: types.Snowflake,
+    ) -> t.List[types.Emoji]:
+        r = Route(
+            "GET", "/guilds/{guild_id}/emojis",
+
+            guild_id=guild_id
+        )
+
+        return await self.request(r)
+
+    async def get_guild_emoji(
+        self,
+        guild_id: types.Snowflake,
+        emoji_id: types.Snowflake,
+    ) -> types.Emoji:
+        r = Route(
+            "GET", "/guilds/{guild_id}/emojis/{emoji_id}",
+
+            guild_id=guild_id,
+            emoji_id=emoji_id,
+        )
+
+        return await self.request(r)
+
+    async def create_guild_emoji(
+        self,
+        guild_id: types.Snowflake,
+        name: str,
+        image: bytes,
+        roles: t.Optional[t.List[Snowflake]] = None,
+        reason: t.Optional[str] = None,
+    ) -> types.Emojis:
+        ...
+
+    async def edit_guild_emoji(
+        self,
+        guild_id: types.Snowflake,
+        emoji_id: types.Snowflake,
+        name: t.Optional[str] = None,
+        roles: t.Optional[t.List[Snowflake]] = None,
+        reason: t.Optional[str] = None,
+    ) -> types.Emojis:
+        ...
+
+    async def delete_guild_emoji(
+        self,
+        guild_id: types.Snowflake,
+        emoji_id: types.Snowflake,
+        reason: t.Optional[str] = None,
+    ) -> types.Emojis:
+        r = Route(
+            "DELETE", "/guilds/{guild_id}/emojis/{emoji_id}",
+
+            guild_id=guild_id,
+            emoji_id=emoji_id,
+        )
+
+        return self.request(r, reason=reason)

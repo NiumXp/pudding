@@ -1,3 +1,4 @@
+from .emoji import *
 from .channel import *
 from .gateway import *
 from .snowflake import *
