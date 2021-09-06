@@ -1,5 +1,4 @@
 import json
-from pudding.types.snowflake import Snowflake
 import typing as t
 
 from aiohttp import ClientSession
@@ -65,7 +64,12 @@ class DiscordHTTPClient:
         self.session = None
         self._closed = True
 
-    async def request(self, route: Route, *, reason: t.Optional[str] = None) -> t.Any:
+    async def request(
+        self,
+        route: Route,
+        *,
+        reason: t.Optional[str] = None,
+    ) -> t.Any:
         if self._closed:
             return
 
@@ -93,6 +97,8 @@ class DiscordHTTPClient:
 
             raise errors.HTTPException()
 
+    # Gateway
+
     async def get_gateway(self) -> GatewayPayload:
         r = Route("GET", "/gateway", auth=False)
         return await self.request(r)
@@ -101,13 +107,22 @@ class DiscordHTTPClient:
         r = Route("GET", "/gateway/bot")
         return await self.request(r)
 
-    async def get_channel(self, id: int) -> types.Channel:
+    # Channel
+
+    async def get_channel(self, id: types.Snowflake) -> types.Channel:
         r = Route("GET", "/channels/{id}", id=id)
         return await self.request(r)
 
-    async def delete_channel(self, id: int, *, reason: t.Optional[str] = None) -> None:
+    async def delete_channel(
+        self,
+        id: types.Snowflake,
+        *,
+        reason: t.Optional[str] = None,
+    ) -> None:
         r = Route("DELETE", "/channels/{id}", id=id)
         return await self.request(r, reason=reason)
+
+    # User
 
     async def get_user(self, id: types.Snowflake) -> types.User:
         r = Route("GET", "/users/{id}", id=id)
@@ -149,9 +164,9 @@ class DiscordHTTPClient:
         guild_id: types.Snowflake,
         name: str,
         image: bytes,
-        roles: t.Optional[t.List[Snowflake]] = None,
+        roles: t.Optional[t.List[types.Snowflake]] = None,
         reason: t.Optional[str] = None,
-    ) -> types.Emojis:
+    ) -> types.Emoji:
         ...
 
     async def edit_guild_emoji(
@@ -159,9 +174,9 @@ class DiscordHTTPClient:
         guild_id: types.Snowflake,
         emoji_id: types.Snowflake,
         name: t.Optional[str] = None,
-        roles: t.Optional[t.List[Snowflake]] = None,
+        roles: t.Optional[t.List[types.Snowflake]] = None,
         reason: t.Optional[str] = None,
-    ) -> types.Emojis:
+    ) -> types.Emoji:
         ...
 
     async def delete_guild_emoji(
@@ -169,7 +184,7 @@ class DiscordHTTPClient:
         guild_id: types.Snowflake,
         emoji_id: types.Snowflake,
         reason: t.Optional[str] = None,
-    ) -> types.Emojis:
+    ) -> types.Emoji:
         r = Route(
             "DELETE", "/guilds/{guild_id}/emojis/{emoji_id}",
 
@@ -177,4 +192,4 @@ class DiscordHTTPClient:
             emoji_id=emoji_id,
         )
 
-        return self.request(r, reason=reason)
+        return await self.request(r, reason=reason)
