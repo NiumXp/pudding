@@ -3,7 +3,20 @@ __all__ = (
 )
 
 import typing as t
+from .snowflake import Snowflake
+
+class _RawChannel(t.TypedDict):
+    id: Snowflake
+    name: str
 
 
-class Channel(t.TypedDict, total=False):
-    ...
+class _RawGuildChannel(_RawChannel):
+    pass
+
+
+class PartialChannel:
+    pass
+
+
+class Channel(_RawChannel):
+    pass
