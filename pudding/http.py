@@ -187,7 +187,8 @@ class DiscordHTTPClient:
 
     # Guild
     
-    async def get_guild(self,
+    async def get_guild(
+        self,
         guild_id: types.Snowflake
     ) -> t.Dict[str, t.Union[str, int, t.List[t.Any]]]:
         r = Route("GET", "/guilds/{guild_id}", guild_id=guild_id)
