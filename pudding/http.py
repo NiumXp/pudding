@@ -100,6 +100,9 @@ class DiscordHTTPClient:
             if 300 > response.status >= 200:
                 return data
 
+            if response.status == 404:
+                raise errors.NotFound()
+
             raise errors.HTTPException()
 
     # Audit Log

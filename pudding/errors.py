@@ -6,6 +6,10 @@ class HTTPException(PuddingError):
     pass
 
 
+class NotFound(HTTPException):
+    pass
+
+
 class GatewayError(PuddingError):
     pass
 
