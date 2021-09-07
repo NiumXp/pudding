@@ -11,4 +11,7 @@ class suppress_all:
         return
 
     def __exit__(self, t: t.Type[BaseException], *_: t.Any) -> bool:
+        if not t:
+            return False
+
         return issubclass(t, self.exc)
