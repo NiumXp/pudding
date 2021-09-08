@@ -36,3 +36,7 @@ class StickerPack(t.TypedDict):
     cover_sticker_id: t.Optional[Snowflake]
     description: str
     banner_asset_id: Snowflake
+
+
+class ListNitroStickerPacks(t.TypedDict):
+    sticker_packs: t.List[StickerPack]
