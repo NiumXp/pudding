@@ -6,4 +6,5 @@ from .guild import *
 from .invite import *
 from .payloads import *
 from .snowflake import *
+from .sticker import *
 from .user import *
