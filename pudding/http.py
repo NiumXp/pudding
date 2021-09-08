@@ -153,6 +153,7 @@ class DiscordHTTPClient:
     async def create_guild_emoji(
         self,
         guild_id: types.Snowflake,
+        *,
         name: str,
         image: bytes,
         roles: t.Optional[t.List[types.Snowflake]] = None,
@@ -164,6 +165,7 @@ class DiscordHTTPClient:
         self,
         guild_id: types.Snowflake,
         emoji_id: types.Snowflake,
+        *,
         name: t.Optional[str] = None,
         roles: t.Optional[t.List[types.Snowflake]] = None,
         reason: t.Optional[str] = None,
@@ -174,6 +176,7 @@ class DiscordHTTPClient:
         self,
         guild_id: types.Snowflake,
         emoji_id: types.Snowflake,
+        *,
         reason: t.Optional[str] = None,
     ) -> types.Emoji:
         r = Route(
@@ -212,6 +215,7 @@ class DiscordHTTPClient:
     async def delete_invite(
         self,
         invite_code: str,
+        *,
         reason: t.Optional[str] = None,
     ) -> None:
         r = Route("DELETE", "/invites/{invite_code}", invite_code=invite_code,)
