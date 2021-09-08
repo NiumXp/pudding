@@ -233,6 +233,61 @@ class DiscordHTTPClient:
 
     # Sticker
 
+    async def get_sticker(
+        self,
+        sticker_id: types.Snowflake,
+    ) -> types.Sticker:
+        ...
+
+    async def get_nitro_sticker_packs(self) -> types.ListNitroStickerPacks:
+        ...
+
+    async def get_guild_stickers(
+        self,
+        guild_id: types.Snowflake,
+    ) -> t.List[types.Sticker]:
+        ...
+
+    async def get_guild_sticker(
+        self,
+        guild_id: types.Snowflake,
+        sticker_id: types.Snowflake,
+    ) -> types.Sticker:
+        ...
+
+    async def create_guild_sticker(
+        self,
+        guild_id: types.Snowflake,
+        *,
+        name: str,
+        description: str,
+        tags: str,
+        file: bytes,
+        reason: t.Optional[str] = None,
+    ) -> types.Sticker:
+        ...
+
+    async def edit_guild_sticker(
+        self,
+        guild_id: types.Snowflake,
+        sticker_id: types.Snowflake,
+        *,
+        name: t.Optional[str] = None,
+        description: t.Optional[str] = None,
+        tags: t.Optional[str],
+        reason: t.Optional[str] = None,
+    ) -> types.Sticker:
+        ...
+
+    async def delete_guild_sticker(
+        self,
+        guild_id: types.Snowflake,
+        sticker_id: types.Snowflake,
+        *,
+        reason: t.Optional[str] = None,
+    ) -> None:
+        ...
+
     # User
 
     async def get_user(self, id: types.Snowflake) -> types.User:
