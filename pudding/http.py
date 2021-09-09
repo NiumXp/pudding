@@ -237,23 +237,33 @@ class DiscordHTTPClient:
         self,
         sticker_id: types.Snowflake,
     ) -> types.Sticker:
-        ...
+        r = Route("GET", "/stickers/{sticker_id}", sticker_id=sticker_id)
+        return await self.request(r)
 
     async def get_nitro_sticker_packs(self) -> types.ListNitroStickerPacks:
-        ...
+        r = Route("GET", "/stickers-packs")
+        return await self.request(r)
 
     async def get_guild_stickers(
         self,
         guild_id: types.Snowflake,
     ) -> t.List[types.Sticker]:
-        ...
+        r = Route("GET", "/guilds/{guild_id}/stickers", guild_id=guild_id)
+        return await self.request(r)
 
     async def get_guild_sticker(
         self,
         guild_id: types.Snowflake,
         sticker_id: types.Snowflake,
     ) -> types.Sticker:
-        ...
+        r = Route(
+            "GET", "/guilds/{guild_id}/stickers/{sticker_id}",
+
+            guild_id=guild_id,
+            sticker_id=sticker_id,
+        )
+
+        return await self.request(r)
 
     async def create_guild_sticker(
         self,
@@ -286,7 +296,14 @@ class DiscordHTTPClient:
         *,
         reason: t.Optional[str] = None,
     ) -> None:
-        ...
+        r = Route(
+            "DELETE", "/guilds/{guild_id}/stickers/{sticker_id}",
+
+            guild_id=guild_id,
+            sticker_id=sticker_id,
+        )
+
+        return await self.request(r, reason=reason)
 
     # User
 
