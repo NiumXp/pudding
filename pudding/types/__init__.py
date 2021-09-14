@@ -8,3 +8,4 @@ from .payloads import *
 from .snowflake import *
 from .sticker import *
 from .user import *
+from .voice_region import *

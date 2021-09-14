@@ -316,6 +316,10 @@ class DiscordHTTPClient:
 
     # Voice
 
+    async def get_voice_regions(self) -> list[types.VoiceRegion]:
+        r = Route("GET", "/voice/regions")
+        return await self.request(r)
+
     # Webhook
 
     # Gateway
